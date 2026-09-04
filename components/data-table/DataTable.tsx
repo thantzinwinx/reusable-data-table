@@ -7,6 +7,7 @@ import { resolveColumns } from "./columnWidths";
 import { useTableSort } from "./hooks/useTableSort";
 import { useTablePagination } from "./hooks/useTablePagination";
 import { useRowExpansion } from "./hooks/useRowExpansion";
+import { Select } from "@/components/ui/Select";
 
 const focusRing =
   "focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[#de674848]";
@@ -50,7 +51,6 @@ export function DataTable<Row, Child = unknown>({
   totalCount,
 }: DataTableProps<Row, Child>) {
   const instanceId = useId();
-  const pageSizeId = useId();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [scrolled, setScrolled] = useState(false);
   const [viewportWidth, setViewportWidth] = useState(0);
@@ -304,22 +304,17 @@ export function DataTable<Row, Child = unknown>({
         aria-hidden={paginationHidden || undefined}
       >
         <div className="flex items-center gap-[9px]">
-          <label htmlFor={pageSizeId}>Rows per page</label>
-          <select
-            id={pageSizeId}
-            className={classNames(
-              "h-[34px] rounded-lg border border-[#ddd9d1] bg-white py-0 pr-11 pl-[9px] font-inherit text-[#3f4343]",
+          <span>Rows per page</span>
+          <Select
+            ariaLabel="Rows per page"
+            value={safePagination.pageSize}
+            options={pageSizeOptions.map((size) => ({ label: String(size), value: size }))}
+            onChange={(size) => changePagination({ pageIndex: 0, pageSize: size })}
+            triggerClassName={classNames(
+              "flex h-[34px] min-w-[64px] items-center justify-between gap-2 rounded-lg border border-[#ddd9d1] bg-white pl-[9px] pr-2 font-inherit text-[#3f4343]",
               focusRing,
             )}
-            value={safePagination.pageSize}
-            onChange={(event) => changePagination({ pageIndex: 0, pageSize: Number(event.target.value) })}
-          >
-            {pageSizeOptions.map((size) => (
-              <option key={size} value={size}>
-                {size}
-              </option>
-            ))}
-          </select>
+          />
         </div>
         <div
           className="flex items-center gap-[9px] max-[620px]:order-3 max-[620px]:w-full max-[620px]:justify-center"

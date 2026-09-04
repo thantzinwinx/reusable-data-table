@@ -6,6 +6,7 @@ import { DataTable } from "@/components/data-table";
 import type { PaginationState, SortState } from "@/components/data-table";
 import { AttendeeList } from "@/features/timetable/AttendeeList";
 import { Sidebar } from "@/components/ui/Sidebar";
+import { Select } from "@/components/ui/Select";
 import { fetchAttendees, fetchClassPage, fetchClasses } from "@/features/timetable/classApi";
 import { timetableColumns } from "@/features/timetable/classColumns";
 import type { ClassRequestMode, FitnessClass } from "@/features/timetable/classTypes";
@@ -202,19 +203,22 @@ export default function Home() {
                 </button>
               </fieldset>
             </div>
-            <label className="flex items-center justify-between gap-[9px] text-[0.72rem] font-semibold text-[#777b77] md:justify-start">
+            <div className="flex items-center justify-between gap-[9px] text-[0.72rem] font-semibold text-[#777b77] md:justify-start">
               <span>Preview table state</span>
-              <select
-                className={`h-9 rounded-lg border border-[#dcd8d0] bg-white py-0 pr-9 pl-2.5 text-xs text-[#383c3b] ${focusRing}`}
+              <Select<PreviewState>
+                ariaLabel="Preview table state"
                 value={preview}
-                onChange={(event) => updatePreview(event.target.value as PreviewState)}
-              >
-                <option value="success">Live data</option>
-                <option value="loading">Loading skeleton</option>
-                <option value="empty">Empty schedule</option>
-                <option value="error">Fetch error</option>
-              </select>
-            </label>
+                align="right"
+                options={[
+                  { label: "Live data", value: "success" },
+                  { label: "Loading skeleton", value: "loading" },
+                  { label: "Empty schedule", value: "empty" },
+                  { label: "Fetch error", value: "error" },
+                ]}
+                onChange={updatePreview}
+                triggerClassName={`flex h-9 min-w-[152px] items-center justify-between gap-2 rounded-lg border border-[#dcd8d0] bg-white pl-2.5 pr-2 text-xs text-[#383c3b] ${focusRing}`}
+              />
+            </div>
           </div>
 
           <DataTable<FitnessClass, NonNullable<FitnessClass["attendees"]>[number]>
