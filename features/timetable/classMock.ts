@@ -24,6 +24,7 @@ function createClassRows(count: number): FitnessClass[] {
     const slot = index % 12;
     const day = Math.floor(index / 12);
     const start = new Date(base.getTime() + day * 86_400_000 + slot * 55 * 60_000);
+    const end = new Date(start.getTime() + (45 + (index % 3) * 15) * 60_000);
     const capacity = index % 29 === 0 ? 0 : 12 + (index % 4) * 6;
     const bookedCount = capacity === 0 ? 0 : index % 7 === 0 ? capacity : Math.min(capacity, 4 + ((index * 3) % 20));
     const status: ClassStatus =
@@ -34,6 +35,8 @@ function createClassRows(count: number): FitnessClass[] {
       className: classNames[index % classNames.length],
       instructor: peopleNames[index % peopleNames.length],
       startTime: timeFormatter.format(start),
+      startTimeValue: start.getTime(),
+      endTime: timeFormatter.format(end),
       capacity,
       bookedCount,
       status,

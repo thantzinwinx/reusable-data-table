@@ -8,6 +8,8 @@ export type FitnessClass = {
   className: string;
   instructor: string;
   startTime: string;
+  startTimeValue: number;
+  endTime: string;
   capacity: number;
   bookedCount: number;
   status: ClassStatus;

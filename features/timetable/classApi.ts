@@ -17,7 +17,7 @@ export async function fetchClasses(mode: ClassRequestMode = "success", latency =
 const sortValueByKey: Record<string, (row: FitnessClass) => string | number> = {
   className: (row) => row.className,
   instructor: (row) => row.instructor,
-  startTime: (row) => row.startTime,
+  startTime: (row) => row.startTimeValue,
   attendance: (row) => (row.capacity === 0 ? 0 : row.bookedCount / row.capacity),
   status: (row) => row.status,
 };
