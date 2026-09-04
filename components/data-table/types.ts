@@ -16,6 +16,7 @@ export type TableColumn<Row> = {
   renderCell?: (value: unknown, row: Row) => ReactNode;
   sortable?: boolean;
   sortValue?: (row: Row) => SortableValue;
+  pinned?: "left" | false;
 };
 
 export type PaginationState = {

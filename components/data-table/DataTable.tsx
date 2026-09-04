@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 import type { DataTableProps, PaginationState, SortState } from "./types";
 import { nextSort, sortRows } from "./sort";
 import { clampPagination } from "./pagination";
@@ -13,6 +13,8 @@ const headerCell =
   "h-[46px] border-b border-[#dedbd4] bg-[#f7f6f2] px-[18px] text-left text-[0.72rem] font-semibold tracking-[0.075em] whitespace-nowrap text-[#686b69] uppercase";
 const bodyRow =
   "group [&>td]:h-16 [&>td]:border-b [&>td]:border-[#ece9e3] [&>td]:bg-white [&>td]:px-[18px] [&>td]:py-3 [&>td]:transition-colors hover:[&>td]:bg-[#faf9f6] last:[&>td]:border-b-transparent";
+const pinnedShadow =
+  "after:pointer-events-none after:absolute after:inset-y-0 after:-right-3 after:w-3 after:bg-linear-to-r after:from-black/12 after:to-transparent";
 
 function classNames(...values: Array<string | false | undefined>) {
   return values.filter(Boolean).join(" ");
@@ -30,8 +32,10 @@ export function DataTable<Row>({
   pageSizeOptions = [10, 25, 50],
 }: DataTableProps<Row>) {
   const pageSizeId = useId();
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [sort, setSort] = useState<SortState>(null);
   const [pagination, setPagination] = useState<PaginationState>(DEFAULT_PAGINATION);
+  const [scrolled, setScrolled] = useState(false);
 
   const sortedRows = useMemo(() => sortRows(rows, columns, sort), [rows, columns, sort]);
   const safePagination = useMemo(
@@ -49,15 +53,21 @@ export function DataTable<Row>({
   const rangeEnd = Math.min(count, rangeStart + visibleRows.length - 1);
 
   const changePagination = (next: PaginationState) => setPagination(clampPagination(next, count));
+  const lastPinnedKey = [...columns].reverse().find((column) => column.pinned === "left")?.key;
 
   return (
     <div className="w-full min-w-0">
-      <div className="relative w-full overflow-auto overscroll-contain rounded-[14px] border border-[#dedbd4] bg-white [scrollbar-width:thin]">
+      <div
+        ref={scrollRef}
+        onScroll={(event) => setScrolled(event.currentTarget.scrollLeft > 1)}
+        className="relative w-full overflow-auto overscroll-contain rounded-[14px] border border-[#dedbd4] bg-white [scrollbar-width:thin]"
+      >
         <table className="w-full border-separate border-spacing-0 text-sm text-[#272b2d]">
           <thead>
             <tr>
               {columns.map((column) => {
                 const active = sort?.key === column.key ? sort.direction : null;
+                const pinned = column.pinned === "left";
                 return (
                   <th
                     key={column.key}
@@ -71,7 +81,11 @@ export function DataTable<Row>({
                             : "none"
                         : undefined
                     }
-                    className={headerCell}
+                    className={classNames(
+                      headerCell,
+                      pinned && "sticky left-0 z-[5] bg-[#f7f6f2]",
+                      scrolled && pinned && column.key === lastPinnedKey && pinnedShadow,
+                    )}
                   >
                     {column.sortable ? (
                       <button
@@ -101,8 +115,15 @@ export function DataTable<Row>({
               <tr key={getRowId(row)} className={bodyRow}>
                 {columns.map((column) => {
                   const value = column.accessor(row);
+                  const pinned = column.pinned === "left";
                   return (
-                    <td key={column.key}>
+                    <td
+                      key={column.key}
+                      className={classNames(
+                        pinned && "sticky left-0 z-[2] bg-white group-hover:bg-[#faf9f6]",
+                        scrolled && pinned && column.key === lastPinnedKey && pinnedShadow,
+                      )}
+                    >
                       {column.renderCell ? column.renderCell(value, row) : displayValue(value)}
                     </td>
                   );

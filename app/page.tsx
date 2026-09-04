@@ -31,7 +31,7 @@ export default function Home() {
         getRowId={(row) => row.id}
         pageSizeOptions={[3, 5, 10]}
         columns={[
-          { key: "className", header: "Class", accessor: (row) => row.className, sortable: true },
+          { key: "className", header: "Class", accessor: (row) => row.className, sortable: true, pinned: "left" },
           { key: "instructor", header: "Instructor", accessor: (row) => row.instructor, sortable: true },
           { key: "startTime", header: "Time", accessor: (row) => row.startTime, sortable: true },
           {
