@@ -109,7 +109,7 @@ export function DataTable<Row, Child = unknown>({
       <div
         ref={scrollRef}
         onScroll={(event) => setScrolled(event.currentTarget.scrollLeft > 1)}
-        className="relative w-full overflow-auto overscroll-contain rounded-[14px] border border-[#dedbd4] bg-white [scrollbar-width:thin]"
+        className="relative w-full overflow-auto rounded-[14px] border border-[#dedbd4] bg-white [scrollbar-width:thin]"
       >
         <table
           className="table-fixed border-separate border-spacing-0 text-sm text-[#272b2d]"
