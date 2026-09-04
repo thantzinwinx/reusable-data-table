@@ -29,4 +29,8 @@ export type DataTableProps<Row> = {
   columns: TableColumn<Row>[];
   getRowId: (row: Row) => string;
   pageSizeOptions?: number[];
+  loading?: boolean;
+  error?: ReactNode;
+  emptyState?: ReactNode;
+  skeletonRowCount?: number;
 };

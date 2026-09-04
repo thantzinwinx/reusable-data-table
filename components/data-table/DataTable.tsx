@@ -30,6 +30,10 @@ export function DataTable<Row>({
   columns,
   getRowId,
   pageSizeOptions = [10, 25, 50],
+  loading = false,
+  error,
+  emptyState = "No results to show.",
+  skeletonRowCount = 5,
 }: DataTableProps<Row>) {
   const pageSizeId = useId();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -54,6 +58,7 @@ export function DataTable<Row>({
 
   const changePagination = (next: PaginationState) => setPagination(clampPagination(next, count));
   const lastPinnedKey = [...columns].reverse().find((column) => column.pinned === "left")?.key;
+  const paginationHidden = loading || Boolean(error);
 
   return (
     <div className="w-full min-w-0">
@@ -62,7 +67,7 @@ export function DataTable<Row>({
         onScroll={(event) => setScrolled(event.currentTarget.scrollLeft > 1)}
         className="relative w-full overflow-auto overscroll-contain rounded-[14px] border border-[#dedbd4] bg-white [scrollbar-width:thin]"
       >
-        <table className="w-full border-separate border-spacing-0 text-sm text-[#272b2d]">
+        <table className="w-full border-separate border-spacing-0 text-sm text-[#272b2d]" aria-busy={loading || undefined}>
           <thead>
             <tr>
               {columns.map((column) => {
@@ -111,32 +116,63 @@ export function DataTable<Row>({
             </tr>
           </thead>
           <tbody>
-            {visibleRows.map((row) => (
-              <tr key={getRowId(row)} className={bodyRow}>
-                {columns.map((column) => {
-                  const value = column.accessor(row);
-                  const pinned = column.pinned === "left";
-                  return (
-                    <td
-                      key={column.key}
-                      className={classNames(
-                        pinned && "sticky left-0 z-[2] bg-white group-hover:bg-[#faf9f6]",
-                        scrolled && pinned && column.key === lastPinnedKey && pinnedShadow,
-                      )}
-                    >
-                      {column.renderCell ? column.renderCell(value, row) : displayValue(value)}
+            {loading ? (
+              Array.from({ length: skeletonRowCount }, (_, rowIndex) => (
+                <tr key={rowIndex} className={bodyRow}>
+                  {columns.map((column) => (
+                    <td key={column.key}>
+                      <span
+                        className="block h-[13px] max-w-[152px] animate-pulse rounded-full bg-[#eeece7] motion-reduce:animate-none"
+                        style={{ width: `${58 + (rowIndex % 4) * 10}%` }}
+                      />
                     </td>
-                  );
-                })}
+                  ))}
+                </tr>
+              ))
+            ) : error ? (
+              <tr>
+                <td className="h-[190px] border-0 bg-white p-6 text-center text-[#686b69]" colSpan={columns.length}>
+                  {error}
+                </td>
               </tr>
-            ))}
+            ) : visibleRows.length === 0 ? (
+              <tr>
+                <td className="h-[190px] border-0 bg-white p-6 text-center text-[#686b69]" colSpan={columns.length}>
+                  {emptyState}
+                </td>
+              </tr>
+            ) : (
+              visibleRows.map((row) => (
+                <tr key={getRowId(row)} className={bodyRow}>
+                  {columns.map((column) => {
+                    const value = column.accessor(row);
+                    const pinned = column.pinned === "left";
+                    return (
+                      <td
+                        key={column.key}
+                        className={classNames(
+                          pinned && "sticky left-0 z-[2] bg-white group-hover:bg-[#faf9f6]",
+                          scrolled && pinned && column.key === lastPinnedKey && pinnedShadow,
+                        )}
+                      >
+                        {column.renderCell ? column.renderCell(value, row) : displayValue(value)}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
 
       <div
-        className="flex items-center justify-between gap-[18px] px-[3px] pt-3.5 text-[0.8rem] text-[#686b69] max-[620px]:flex-wrap"
+        className={classNames(
+          "flex items-center justify-between gap-[18px] px-[3px] pt-3.5 text-[0.8rem] text-[#686b69] max-[620px]:flex-wrap",
+          paginationHidden && "invisible",
+        )}
         aria-label="Pagination"
+        aria-hidden={paginationHidden || undefined}
       >
         <div className="flex items-center gap-[9px]">
           <label htmlFor={pageSizeId}>Rows per page</label>
