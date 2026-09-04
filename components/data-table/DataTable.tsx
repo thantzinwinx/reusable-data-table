@@ -185,8 +185,11 @@ export function DataTable<Row, Child = unknown>({
                         style={pinned ? { left } : undefined}
                       >
                         <span
-                          className="block h-[13px] max-w-[152px] animate-pulse rounded-full bg-[#eeece7] motion-reduce:animate-none"
-                          style={{ width: `${58 + ((rowIndex + columnIndex) % 4) * 10}%` }}
+                          className="block h-[13px] max-w-[152px] rounded-full bg-[length:200%_100%] bg-[linear-gradient(90deg,#ece9e2_25%,#f8f6f1_50%,#ece9e2_75%)] motion-safe:animate-[table-skeleton-sweep_1.5s_ease-in-out_infinite] motion-reduce:bg-[#eeece7]"
+                          style={{
+                            width: `${58 + ((rowIndex + columnIndex) % 4) * 10}%`,
+                            animationDelay: `${(rowIndex * 90 + columnIndex * 60) % 900}ms`,
+                          }}
                         />
                       </td>
                     );
@@ -195,14 +198,14 @@ export function DataTable<Row, Child = unknown>({
               ))
             ) : error ? (
               <tr>
-                <td className="h-[190px] border-0 bg-white p-6 text-center text-[#686b69]" colSpan={columns.length}>
-                  {error}
+                <td className="h-[220px] border-0 bg-white p-6 text-center text-[#686b69]" colSpan={columns.length}>
+                  <div className="flex h-full flex-col items-center justify-center">{error}</div>
                 </td>
               </tr>
             ) : visibleRows.length === 0 ? (
               <tr>
-                <td className="h-[190px] border-0 bg-white p-6 text-center text-[#686b69]" colSpan={columns.length}>
-                  {emptyState}
+                <td className="h-[220px] border-0 bg-white p-6 text-center text-[#686b69]" colSpan={columns.length}>
+                  <div className="flex h-full flex-col items-center justify-center">{emptyState}</div>
                 </td>
               </tr>
             ) : (
@@ -305,7 +308,7 @@ export function DataTable<Row, Child = unknown>({
           <select
             id={pageSizeId}
             className={classNames(
-              "h-[34px] rounded-lg border border-[#ddd9d1] bg-white py-0 pr-9 pl-[9px] font-inherit text-[#3f4343]",
+              "h-[34px] rounded-lg border border-[#ddd9d1] bg-white py-0 pr-11 pl-[9px] font-inherit text-[#3f4343]",
               focusRing,
             )}
             value={safePagination.pageSize}
