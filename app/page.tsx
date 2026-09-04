@@ -5,6 +5,10 @@ import { DataTable } from "@/components/data-table";
 import type { PaginationState, SortState } from "@/components/data-table";
 import { AttendeeList, type Attendee } from "@/features/timetable/AttendeeList";
 
+const focusRing = "focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[#de674840]";
+const segmentedControl = "inline-flex rounded-[10px] border border-[#ddd9d1] bg-[#ebe8e1] p-[3px]";
+const segmentedButton = `min-h-[33px] cursor-pointer rounded-[7px] border-0 bg-transparent px-[13px] text-xs font-semibold text-[#6f736f] aria-pressed:bg-white aria-pressed:text-[#292e2d] aria-pressed:shadow-sm ${focusRing}`;
+
 type Payment = {
   id: string;
   memberName: string;
@@ -53,12 +57,63 @@ const rows: FitnessClass[] = [
       { id: "a2", name: "Mya Mya", paymentType: "Package", bookingStatus: "Booked" },
     ],
   },
-  { id: "2", className: "Yoga", instructor: "Su Su", startTime: "8:00 AM", capacity: 15, bookedCount: 15 },
-  { id: "3", className: "Gym", instructor: "Mg Mya", startTime: "9:15 AM", capacity: 25, bookedCount: 8 },
-  { id: "4", className: "Boxing", instructor: "Mya Mya", startTime: "10:00 AM", capacity: 20, bookedCount: 5 },
-  { id: "5", className: "Yoga", instructor: "Phyu Phyu", startTime: "11:00 AM", capacity: 15, bookedCount: 10 },
-  { id: "6", className: "Gym", instructor: "Mg Kyaw", startTime: "1:00 PM", capacity: 25, bookedCount: 20 },
-  { id: "7", className: "Boxing", instructor: "Su Su", startTime: "2:30 PM", capacity: 20, bookedCount: 18 },
+  {
+    id: "2",
+    className: "Yoga",
+    instructor: "Su Su",
+    startTime: "8:00 AM",
+    capacity: 15,
+    bookedCount: 15,
+    attendees: [{ id: "a3", name: "Phyu Phyu", paymentType: "One-time", bookingStatus: "Checked-in" }],
+  },
+  {
+    id: "3",
+    className: "Gym",
+    instructor: "Mg Mya",
+    startTime: "9:15 AM",
+    capacity: 25,
+    bookedCount: 8,
+    attendees: [],
+  },
+  {
+    id: "4",
+    className: "Boxing",
+    instructor: "Mya Mya",
+    startTime: "10:00 AM",
+    capacity: 20,
+    bookedCount: 5,
+    attendees: [{ id: "a4", name: "Mg Kyaw", paymentType: "Package", bookingStatus: "Booked" }],
+  },
+  {
+    id: "5",
+    className: "Yoga",
+    instructor: "Phyu Phyu",
+    startTime: "11:00 AM",
+    capacity: 15,
+    bookedCount: 10,
+    attendees: [
+      { id: "a5", name: "Su Su", paymentType: "Membership", bookingStatus: "Checked-in" },
+      { id: "a6", name: "Mg Mya", paymentType: "One-time", bookingStatus: "No-show" },
+    ],
+  },
+  {
+    id: "6",
+    className: "Gym",
+    instructor: "Mg Kyaw",
+    startTime: "1:00 PM",
+    capacity: 25,
+    bookedCount: 20,
+    attendees: [{ id: "a7", name: "Mya Mya", paymentType: "Membership", bookingStatus: "Checked-in" }],
+  },
+  {
+    id: "7",
+    className: "Boxing",
+    instructor: "Su Su",
+    startTime: "2:30 PM",
+    capacity: 20,
+    bookedCount: 18,
+    attendees: [{ id: "a8", name: "Phyu Phyu", paymentType: "Package", bookingStatus: "Booked" }],
+  },
 ];
 
 const failedOnce = new Set<string>();
@@ -106,6 +161,7 @@ async function fetchClassPage(sort: SortState, pagination: PaginationState) {
 
 export default function Home() {
   const [mode, setMode] = useState<"client" | "server">("client");
+  const [attendeeMode, setAttendeeMode] = useState<"inline" | "lazy">("inline");
   const [serverSort, setServerSort] = useState<SortState>(null);
   const [serverPagination, setServerPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 3 });
   const [serverRows, setServerRows] = useState<FitnessClass[]>([]);
@@ -144,24 +200,43 @@ export default function Home() {
       <p className="text-xs font-bold tracking-[0.12em] uppercase">Gym Studio</p>
       <h1 className="mt-3 mb-6 text-4xl font-semibold tracking-tight">Class timetable</h1>
 
-      <div className="mb-4 flex gap-2">
-        <button
-          type="button"
-          className={`rounded-lg border px-3 py-1.5 text-sm font-semibold ${mode === "client" ? "border-[#272b2d] bg-[#272b2d] text-white" : "border-[#ddd9d1] bg-white text-[#3f4343]"}`}
-          onClick={() => setMode("client")}
-        >
-          Client processing
-        </button>
-        <button
-          type="button"
-          className={`rounded-lg border px-3 py-1.5 text-sm font-semibold ${mode === "server" ? "border-[#272b2d] bg-[#272b2d] text-white" : "border-[#ddd9d1] bg-white text-[#3f4343]"}`}
-          onClick={() => {
-            setMode("server");
-            setServerLoading(true);
-          }}
-        >
-          Server processing
-        </button>
+      <div className="mb-4 flex flex-wrap gap-2">
+        <fieldset className={segmentedControl}>
+          <legend className="sr-only">Data processing mode</legend>
+          <button type="button" className={segmentedButton} aria-pressed={mode === "client"} onClick={() => setMode("client")}>
+            Client processing
+          </button>
+          <button
+            type="button"
+            className={segmentedButton}
+            aria-pressed={mode === "server"}
+            onClick={() => {
+              setMode("server");
+              setServerLoading(true);
+            }}
+          >
+            Server processing
+          </button>
+        </fieldset>
+        <fieldset className={segmentedControl}>
+          <legend className="sr-only">Attendee loading mode</legend>
+          <button
+            type="button"
+            className={segmentedButton}
+            aria-pressed={attendeeMode === "inline"}
+            onClick={() => setAttendeeMode("inline")}
+          >
+            Inline attendees
+          </button>
+          <button
+            type="button"
+            className={segmentedButton}
+            aria-pressed={attendeeMode === "lazy"}
+            onClick={() => setAttendeeMode("lazy")}
+          >
+            Lazy attendees
+          </button>
+        </fieldset>
       </div>
 
       <DataTable
@@ -191,8 +266,8 @@ export default function Home() {
             : undefined
         }
         totalCount={mode === "server" ? serverTotalCount : undefined}
-        getInlineChildren={(row) => row.attendees}
-        loadChildren={loadAttendees}
+        getInlineChildren={attendeeMode === "inline" ? (row) => row.attendees : undefined}
+        loadChildren={attendeeMode === "lazy" ? loadAttendees : undefined}
         getExpandLabel={(row, expanded) => `${expanded ? "Collapse" : "Expand"} attendees for ${row.className}`}
         renderExpandedContent={(args) => <AttendeeList {...args} />}
       />
