@@ -10,6 +10,11 @@ import { Select } from "@/components/ui/Select";
 import { fetchAttendees, fetchClassPage, fetchClasses } from "@/features/timetable/classApi";
 import { timetableColumns } from "@/features/timetable/classColumns";
 import type { ClassRequestMode, FitnessClass } from "@/features/timetable/classTypes";
+import { fetchPaymentItems, fetchPaymentPage } from "@/features/payments/paymentApi";
+import { payments } from "@/features/payments/paymentMock";
+import { paymentColumns } from "@/features/payments/paymentColumns";
+import { PaymentItemList } from "@/features/payments/PaymentItemList";
+import type { Payment, PaymentItem } from "@/features/payments/paymentTypes";
 
 const stateEnter = "motion-safe:animate-[table-state-in_0.4s_ease-out]";
 
@@ -17,35 +22,11 @@ const focusRing = "focus-visible:outline focus-visible:outline-3 focus-visible:o
 const segmentedControl = "inline-flex rounded-[10px] border border-[#ddd9d1] bg-[#ebe8e1] p-[3px]";
 const segmentedButton = `min-h-[33px] cursor-pointer rounded-[7px] border-0 bg-transparent px-[13px] text-xs font-semibold text-[#6f736f] aria-pressed:bg-white aria-pressed:text-[#292e2d] aria-pressed:shadow-sm ${focusRing}`;
 
-type Payment = {
-  id: string;
-  memberName: string;
-  amount: number;
-  method: "Cash" | "Card" | "Mobile Banking";
-  status: "Paid" | "Pending" | "Refunded";
-  date: string;
-};
-
-const payments: Payment[] = [
-  { id: "p1", memberName: "Su Su", amount: 120000, method: "Mobile Banking", status: "Paid", date: "2026-09-01" },
-  { id: "p2", memberName: "Mg Kyaw", amount: 45000, method: "Cash", status: "Paid", date: "2026-09-02" },
-  { id: "p3", memberName: "Mya Mya", amount: 80000, method: "Card", status: "Pending", date: "2026-09-02" },
-  { id: "p4", memberName: "Phyu Phyu", amount: 60000, method: "Mobile Banking", status: "Refunded", date: "2026-09-03" },
-  { id: "p5", memberName: "Mg Mya", amount: 150000, method: "Card", status: "Paid", date: "2026-09-03" },
-];
-
-const paymentStatusClasses: Record<Payment["status"], string> = {
-  Paid: "bg-[#e8f3eb] text-[#397251]",
-  Pending: "bg-[#fff0df] text-[#a15f22]",
-  Refunded: "bg-[#f4eae7] text-[#965848]",
-};
-
-const mmkFormatter = new Intl.NumberFormat("en-US");
-
 type DataMode = "client" | "server";
 type PreviewState = ClassRequestMode | "loading";
 
 const DEFAULT_PAGINATION: PaginationState = { pageIndex: 0, pageSize: 10 };
+const PAYMENT_DEFAULT_PAGINATION: PaginationState = { pageIndex: 0, pageSize: 3 };
 
 export default function Home() {
   const [rows, setRows] = useState<FitnessClass[]>([]);
@@ -164,6 +145,47 @@ export default function Home() {
     else void loadSchedule("success");
   };
 
+  const [paymentMode, setPaymentMode] = useState<DataMode>("client");
+  const [paymentServerSort, setPaymentServerSort] = useState<SortState>(null);
+  const [paymentServerPagination, setPaymentServerPagination] = useState<PaginationState>(PAYMENT_DEFAULT_PAGINATION);
+  const [paymentRows, setPaymentRows] = useState<Payment[]>([]);
+  const [paymentTotalCount, setPaymentTotalCount] = useState(0);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const paymentRequestSequence = useRef(0);
+
+  const loadPaymentPage = useCallback(async (sort: SortState, pagination: PaginationState) => {
+    const requestId = ++paymentRequestSequence.current;
+    setPaymentLoading(true);
+    try {
+      const result = await fetchPaymentPage(sort, pagination);
+      if (requestId !== paymentRequestSequence.current) return;
+      setPaymentRows(result.rows);
+      setPaymentTotalCount(result.totalCount);
+    } finally {
+      if (requestId === paymentRequestSequence.current) setPaymentLoading(false);
+    }
+  }, []);
+
+  const updatePaymentMode = (mode: DataMode) => {
+    if (mode === paymentMode) return;
+    setPaymentMode(mode);
+    setPaymentServerSort(null);
+    setPaymentServerPagination(PAYMENT_DEFAULT_PAGINATION);
+    if (mode === "server") void loadPaymentPage(null, PAYMENT_DEFAULT_PAGINATION);
+  };
+
+  const updatePaymentServerSort = (sort: SortState) => {
+    const firstPage = { ...paymentServerPagination, pageIndex: 0 };
+    setPaymentServerSort(sort);
+    setPaymentServerPagination(firstPage);
+    void loadPaymentPage(sort, firstPage);
+  };
+
+  const updatePaymentServerPagination = (pagination: PaginationState) => {
+    setPaymentServerPagination(pagination);
+    void loadPaymentPage(paymentServerSort, pagination);
+  };
+
   return (
     <div className="flex min-h-screen bg-[#f4f2ed]">
       <Sidebar />
@@ -279,38 +301,52 @@ export default function Home() {
 
           <div className="mt-12 mb-6 border-t border-[#dedbd3] pt-10">
             <p className="mb-2 text-[0.69rem] font-bold tracking-[0.12em] text-[#858781] uppercase">Reusable component demo</p>
-            <div className="flex items-end justify-between gap-6">
-              <h2 className="text-2xl font-semibold tracking-tight">Recent Payments</h2>
-              <p className="mb-0.5 hidden text-[0.78rem] text-[#81847f] md:block">A different row shape, the same typed table.</p>
+            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+              <div>
+                <h2 className="text-2xl font-semibold tracking-tight">Recent Payments</h2>
+                <p className="mt-1 text-[0.78rem] text-[#81847f]">
+                  A different row shape, with its own server mode and on-demand details.
+                </p>
+              </div>
+              <fieldset className={segmentedControl}>
+                <legend className="sr-only">Payments processing mode</legend>
+                <button
+                  type="button"
+                  className={segmentedButton}
+                  aria-pressed={paymentMode === "client"}
+                  onClick={() => updatePaymentMode("client")}
+                >
+                  Client processing
+                </button>
+                <button
+                  type="button"
+                  className={segmentedButton}
+                  aria-pressed={paymentMode === "server"}
+                  onClick={() => updatePaymentMode("server")}
+                >
+                  Server processing
+                </button>
+              </fieldset>
             </div>
           </div>
-          <DataTable
-            rows={payments}
+          <DataTable<Payment, PaymentItem>
+            key={paymentMode}
+            rows={paymentMode === "server" ? paymentRows : payments}
             getRowId={(row) => row.id}
+            columns={paymentColumns}
+            loading={paymentMode === "server" ? paymentLoading : false}
+            sortingMode={paymentMode}
+            sort={paymentMode === "server" ? paymentServerSort : undefined}
+            onSortChange={paymentMode === "server" ? updatePaymentServerSort : undefined}
+            paginationMode={paymentMode}
+            pagination={paymentMode === "server" ? paymentServerPagination : undefined}
+            onPaginationChange={paymentMode === "server" ? updatePaymentServerPagination : undefined}
+            totalCount={paymentMode === "server" ? paymentTotalCount : undefined}
+            defaultPagination={PAYMENT_DEFAULT_PAGINATION}
             pageSizeOptions={[3, 5, 10]}
-            columns={[
-              { key: "memberName", header: "Member", accessor: (row) => row.memberName, sortable: true, pinned: "left" },
-              {
-                key: "amount",
-                header: "Amount",
-                accessor: (row) => row.amount,
-                sortable: true,
-                renderCell: (value) => `${mmkFormatter.format(value as number)} MMK`,
-              },
-              { key: "method", header: "Method", accessor: (row) => row.method, sortable: true },
-              {
-                key: "status",
-                header: "Status",
-                accessor: (row) => row.status,
-                sortable: true,
-                renderCell: (value, row) => (
-                  <span className={`rounded-full px-2 py-1 text-xs font-semibold ${paymentStatusClasses[row.status]}`}>
-                    {String(value)}
-                  </span>
-                ),
-              },
-              { key: "date", header: "Date", accessor: (row) => row.date, sortable: true },
-            ]}
+            loadChildren={(row) => fetchPaymentItems(row)}
+            getExpandLabel={(row, expanded) => `${expanded ? "Collapse" : "Show"} details for ${row.memberName}`}
+            renderExpandedContent={(args) => <PaymentItemList {...args} />}
           />
         </div>
       </main>
