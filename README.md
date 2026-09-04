@@ -8,36 +8,36 @@ The goal is to build a reusable `DataTable` component from scratch. It should no
 
 ```text
 app/
-  page.tsx            the demo page (timetable + payments)
-  layout.tsx
-  globals.css
+├── page.tsx              # demo page (timetable + payments)
+├── layout.tsx            # root layout
+└── globals.css           # global styles
 
 components/
-  data-table/         the reusable table (does not know about classes or payments)
-    DataTable.tsx
-    types.ts
-    sort.ts
-    pagination.ts
-    columnWidths.ts
-    index.ts
-    hooks/
-      useTableSort.ts
-      useTablePagination.ts
-      useRowExpansion.ts
-      useControllableState.ts
-    __tests__/
-      DataTable.test.tsx
-  ui/                 small shared UI pieces, not part of the table
-    Select.tsx
-    Sidebar.tsx
+├── data-table/           # the reusable table, does not know about classes or payments
+│   ├── DataTable.tsx     # the table component
+│   ├── types.ts          # shared types (TableColumn, DataTableProps, ...)
+│   ├── sort.ts           # pure sort helpers
+│   ├── pagination.ts     # pure pagination helpers
+│   ├── columnWidths.ts   # width math for columns
+│   ├── index.ts          # public exports
+│   ├── hooks/
+│   │   ├── useTableSort.ts
+│   │   ├── useTablePagination.ts
+│   │   ├── useRowExpansion.ts
+│   │   └── useControllableState.ts
+│   └── __tests__/
+│       └── DataTable.test.tsx
+└── ui/                   # small shared UI pieces, not part of the table
+    ├── Select.tsx
+    └── Sidebar.tsx
 
 features/
-  timetable/          gym class data, columns, and mock API
-    classTypes.ts
-    classMock.ts
-    classApi.ts
-    classColumns.tsx
-    AttendeeList.tsx
+└── timetable/            # gym class data, columns, and mock API
+    ├── classTypes.ts
+    ├── classMock.ts
+    ├── classApi.ts
+    ├── classColumns.tsx
+    └── AttendeeList.tsx
 ```
 
 The table code never imports from `features/`. Only `features/` and `app/` import from `components/data-table/`. This keeps the table reusable.
