@@ -270,6 +270,7 @@ export function DataTable<Row, Child = unknown>({
                           <div
                             id={regionId}
                             aria-hidden={!expanded}
+                            inert={!expanded ? true : undefined}
                             className={classNames(
                               "grid overflow-hidden transition-[grid-template-rows,opacity] duration-[320ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
                               expanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
@@ -305,6 +306,7 @@ export function DataTable<Row, Child = unknown>({
         )}
         aria-label="Pagination"
         aria-hidden={paginationHidden || undefined}
+        inert={paginationHidden ? true : undefined}
       >
         <div className="flex items-center gap-[9px]">
           <span>Rows per page</span>
