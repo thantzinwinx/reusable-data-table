@@ -1,8 +1,9 @@
 "use client";
 
-import { Fragment, useId, useMemo, useRef, useState } from "react";
+import { Fragment, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { DataTableProps } from "./types";
 import { sortRows } from "./sort";
+import { resolveColumns } from "./columnWidths";
 import { useTableSort } from "./hooks/useTableSort";
 import { useTablePagination } from "./hooks/useTablePagination";
 import { useRowExpansion } from "./hooks/useRowExpansion";
@@ -52,6 +53,20 @@ export function DataTable<Row, Child = unknown>({
   const pageSizeId = useId();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [scrolled, setScrolled] = useState(false);
+  const [viewportWidth, setViewportWidth] = useState(0);
+
+  useLayoutEffect(() => {
+    const element = scrollRef.current;
+    if (!element) return;
+    const update = () => setViewportWidth(element.clientWidth);
+    update();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  const layout = useMemo(() => resolveColumns(columns, rows, viewportWidth), [columns, rows, viewportWidth]);
 
   const hasExpansion = Boolean(renderExpandedContent && (getInlineChildren || loadChildren));
   const { sort, toggleSort } = useTableSort({ sort: controlledSort, defaultSort, onSortChange });
@@ -86,7 +101,7 @@ export function DataTable<Row, Child = unknown>({
   const rangeStart = count === 0 ? 0 : safePagination.pageIndex * safePagination.pageSize + 1;
   const rangeEnd = Math.min(count, rangeStart + visibleRows.length - 1);
 
-  const lastPinnedKey = [...columns].reverse().find((column) => column.pinned === "left")?.key;
+  const lastPinnedKey = [...layout.columns].reverse().find(({ column }) => column.pinned === "left")?.column.key;
   const paginationHidden = loading || Boolean(error);
 
   return (
@@ -96,10 +111,19 @@ export function DataTable<Row, Child = unknown>({
         onScroll={(event) => setScrolled(event.currentTarget.scrollLeft > 1)}
         className="relative w-full overflow-auto overscroll-contain rounded-[14px] border border-[#dedbd4] bg-white [scrollbar-width:thin]"
       >
-        <table className="w-full border-separate border-spacing-0 text-sm text-[#272b2d]" aria-busy={loading || undefined}>
+        <table
+          className="table-fixed border-separate border-spacing-0 text-sm text-[#272b2d]"
+          style={{ width: layout.tableWidth }}
+          aria-busy={loading || undefined}
+        >
+          <colgroup>
+            {layout.columns.map(({ column, width }) => (
+              <col key={column.key} style={{ width: `${width}px` }} />
+            ))}
+          </colgroup>
           <thead>
             <tr>
-              {columns.map((column) => {
+              {layout.columns.map(({ column, left }) => {
                 const active = sort?.key === column.key ? sort.direction : null;
                 const pinned = column.pinned === "left";
                 return (
@@ -117,9 +141,10 @@ export function DataTable<Row, Child = unknown>({
                     }
                     className={classNames(
                       headerCell,
-                      pinned && "sticky left-0 z-[5] bg-[#f7f6f2]",
+                      pinned && "sticky z-[5] bg-[#f7f6f2]",
                       scrolled && pinned && column.key === lastPinnedKey && pinnedShadow,
                     )}
+                    style={pinned ? { left } : undefined}
                   >
                     {column.sortable ? (
                       <button
@@ -148,14 +173,24 @@ export function DataTable<Row, Child = unknown>({
             {loading ? (
               Array.from({ length: skeletonRowCount }, (_, rowIndex) => (
                 <tr key={rowIndex} className={bodyRow}>
-                  {columns.map((column) => (
-                    <td key={column.key}>
-                      <span
-                        className="block h-[13px] max-w-[152px] animate-pulse rounded-full bg-[#eeece7] motion-reduce:animate-none"
-                        style={{ width: `${58 + (rowIndex % 4) * 10}%` }}
-                      />
-                    </td>
-                  ))}
+                  {layout.columns.map(({ column, left }, columnIndex) => {
+                    const pinned = column.pinned === "left";
+                    return (
+                      <td
+                        key={column.key}
+                        className={classNames(
+                          pinned && "sticky z-[2] bg-white",
+                          scrolled && pinned && column.key === lastPinnedKey && pinnedShadow,
+                        )}
+                        style={pinned ? { left } : undefined}
+                      >
+                        <span
+                          className="block h-[13px] max-w-[152px] animate-pulse rounded-full bg-[#eeece7] motion-reduce:animate-none"
+                          style={{ width: `${58 + ((rowIndex + columnIndex) % 4) * 10}%` }}
+                        />
+                      </td>
+                    );
+                  })}
                 </tr>
               ))
             ) : error ? (
@@ -184,16 +219,17 @@ export function DataTable<Row, Child = unknown>({
                 return (
                   <Fragment key={id}>
                     <tr className={bodyRow}>
-                      {columns.map((column, columnIndex) => {
+                      {layout.columns.map(({ column, left }, columnIndex) => {
                         const value = column.accessor(row);
                         const pinned = column.pinned === "left";
                         return (
                           <td
                             key={column.key}
                             className={classNames(
-                              pinned && "sticky left-0 z-[2] bg-white group-hover:bg-[#faf9f6]",
+                              pinned && "sticky z-[2] bg-white group-hover:bg-[#faf9f6]",
                               scrolled && pinned && column.key === lastPinnedKey && pinnedShadow,
                             )}
+                            style={pinned ? { left } : undefined}
                           >
                             <div className="flex min-w-0 items-center gap-2.5">
                               {columnIndex === 0 && expandable ? (
@@ -269,7 +305,7 @@ export function DataTable<Row, Child = unknown>({
           <select
             id={pageSizeId}
             className={classNames(
-              "h-[34px] rounded-lg border border-[#ddd9d1] bg-white py-0 pr-[27px] pl-[9px] font-inherit text-[#3f4343]",
+              "h-[34px] rounded-lg border border-[#ddd9d1] bg-white py-0 pr-9 pl-[9px] font-inherit text-[#3f4343]",
               focusRing,
             )}
             value={safePagination.pageSize}

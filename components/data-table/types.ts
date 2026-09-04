@@ -17,6 +17,10 @@ export type TableColumn<Row> = {
   sortable?: boolean;
   sortValue?: (row: Row) => SortableValue;
   pinned?: "left" | false;
+  width?: number;
+  preferredWidth?: number;
+  minWidth?: number;
+  maxWidth?: number;
 };
 
 export type PaginationState = {

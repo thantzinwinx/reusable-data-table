@@ -227,7 +227,8 @@ export default function Home() {
   return (
     <div className="flex min-h-screen bg-[#f4f2ed]">
       <Sidebar />
-      <main className="min-w-0 flex-1 p-6" id="top">
+      <main className="min-w-0 flex-1" id="top">
+      <div className="mx-auto w-full max-w-[1320px] px-6 py-8">
       <p className="text-xs font-bold tracking-[0.12em] uppercase">Gym Studio</p>
       <h1 className="mt-3 mb-6 text-4xl font-semibold tracking-tight">Class timetable</h1>
 
@@ -303,7 +304,13 @@ export default function Home() {
         renderExpandedContent={(args) => <AttendeeList {...args} />}
       />
 
-      <h2 className="mt-12 mb-6 text-2xl font-semibold tracking-tight">Recent Payments</h2>
+      <div className="mt-12 mb-6 border-t border-[#dedbd3] pt-10">
+        <p className="mb-2 text-[0.69rem] font-bold tracking-[0.12em] text-[#858781] uppercase">Reusable component demo</p>
+        <div className="flex items-end justify-between gap-6">
+          <h2 className="text-2xl font-semibold tracking-tight">Recent Payments</h2>
+          <p className="mb-0.5 hidden text-[0.78rem] text-[#81847f] md:block">A different row shape, the same typed table.</p>
+        </div>
+      </div>
       <DataTable
         rows={payments}
         getRowId={(row) => row.id}
@@ -332,6 +339,7 @@ export default function Home() {
           { key: "date", header: "Date", accessor: (row) => row.date, sortable: true },
         ]}
       />
+      </div>
       </main>
     </div>
   );
