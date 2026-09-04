@@ -18,7 +18,7 @@ const sortValueByKey: Record<string, (row: FitnessClass) => string | number> = {
   className: (row) => row.className,
   instructor: (row) => row.instructor,
   startTime: (row) => row.startTime,
-  attendance: (row) => row.bookedCount / row.capacity,
+  attendance: (row) => (row.capacity === 0 ? 0 : row.bookedCount / row.capacity),
   status: (row) => row.status,
 };
 
@@ -52,7 +52,7 @@ const failedOnce = new Set<string>();
 
 export async function fetchAttendees(row: FitnessClass): Promise<Attendee[]> {
   await wait(800);
-  if (row.id === "3" && !failedOnce.has(row.id)) {
+  if (row.id === "class-3" && !failedOnce.has(row.id)) {
     failedOnce.add(row.id);
     throw new Error("Could not load attendees.");
   }

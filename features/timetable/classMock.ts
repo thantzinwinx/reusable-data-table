@@ -1,80 +1,45 @@
-import type { FitnessClass } from "./classTypes";
+import type { Attendee } from "./AttendeeList";
+import type { ClassStatus, FitnessClass } from "./classTypes";
 
-export const classRows: FitnessClass[] = [
-  {
-    id: "1",
-    className: "Boxing",
-    instructor: "Mg Kyaw",
-    startTime: "6:30 AM",
-    capacity: 20,
-    bookedCount: 12,
-    status: "Scheduled",
-    attendees: [
-      { id: "a1", name: "Su Su", paymentType: "Membership", bookingStatus: "Checked-in" },
-      { id: "a2", name: "Mya Mya", paymentType: "Package", bookingStatus: "Booked" },
-    ],
-  },
-  {
-    id: "2",
-    className: "Yoga",
-    instructor: "Su Su",
-    startTime: "8:00 AM",
-    capacity: 15,
-    bookedCount: 15,
-    status: "Full",
-    attendees: [{ id: "a3", name: "Phyu Phyu", paymentType: "One-time", bookingStatus: "Checked-in" }],
-  },
-  {
-    id: "3",
-    className: "Gym",
-    instructor: "Mg Mya",
-    startTime: "9:15 AM",
-    capacity: 25,
-    bookedCount: 8,
-    status: "Cancelled",
-    attendees: [],
-  },
-  {
-    id: "4",
-    className: "Boxing",
-    instructor: "Mya Mya",
-    startTime: "10:00 AM",
-    capacity: 20,
-    bookedCount: 5,
-    status: "Scheduled",
-    attendees: [{ id: "a4", name: "Mg Kyaw", paymentType: "Package", bookingStatus: "Booked" }],
-  },
-  {
-    id: "5",
-    className: "Yoga",
-    instructor: "Phyu Phyu",
-    startTime: "11:00 AM",
-    capacity: 15,
-    bookedCount: 10,
-    status: "Scheduled",
-    attendees: [
-      { id: "a5", name: "Su Su", paymentType: "Membership", bookingStatus: "Checked-in" },
-      { id: "a6", name: "Mg Mya", paymentType: "One-time", bookingStatus: "No-show" },
-    ],
-  },
-  {
-    id: "6",
-    className: "Gym",
-    instructor: "Mg Kyaw",
-    startTime: "1:00 PM",
-    capacity: 25,
-    bookedCount: 20,
-    status: "Scheduled",
-    attendees: [{ id: "a7", name: "Mya Mya", paymentType: "Membership", bookingStatus: "Checked-in" }],
-  },
-  {
-    id: "7",
-    className: "Boxing",
-    instructor: "Su Su",
-    startTime: "2:30 PM",
-    capacity: 20,
-    bookedCount: 18,
-    status: "Scheduled",
-    attendees: [{ id: "a8", name: "Phyu Phyu", paymentType: "Package", bookingStatus: "Booked" }],
-  },
-];
+const classNames = ["Boxing", "Yoga", "Gym"];
+const peopleNames = ["Mg Kyaw", "Mg Mya", "Su Su", "Mya Mya", "Phyu Phyu"];
+const paymentTypes: Attendee["paymentType"][] = ["Membership", "Package", "One-time"];
+const bookingStatuses: Attendee["bookingStatus"][] = ["Checked-in", "Booked", "No-show", "Cancelled"];
+
+const timeFormatter = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone: "UTC" });
+
+function attendeesFor(index: number): Attendee[] {
+  const count = index % 5 === 1 ? 0 : (index % 3) + 1;
+  return Array.from({ length: count }, (_, attendeeIndex) => ({
+    id: `class-${index}-attendee-${attendeeIndex}`,
+    name: peopleNames[(index + attendeeIndex) % peopleNames.length],
+    paymentType: paymentTypes[(index + attendeeIndex) % paymentTypes.length],
+    bookingStatus: bookingStatuses[(index + attendeeIndex) % bookingStatuses.length],
+  }));
+}
+
+function createClassRows(count: number): FitnessClass[] {
+  const base = new Date("2026-09-03T06:30:00.000Z");
+  return Array.from({ length: count }, (_, index) => {
+    const slot = index % 12;
+    const day = Math.floor(index / 12);
+    const start = new Date(base.getTime() + day * 86_400_000 + slot * 55 * 60_000);
+    const capacity = index % 29 === 0 ? 0 : 12 + (index % 4) * 6;
+    const bookedCount = capacity === 0 ? 0 : index % 7 === 0 ? capacity : Math.min(capacity, 4 + ((index * 3) % 20));
+    const status: ClassStatus =
+      index % 17 === 0 ? "Cancelled" : bookedCount >= capacity && capacity > 0 ? "Full" : "Scheduled";
+
+    return {
+      id: `class-${index}`,
+      className: classNames[index % classNames.length],
+      instructor: peopleNames[index % peopleNames.length],
+      startTime: timeFormatter.format(start),
+      capacity,
+      bookedCount,
+      status,
+      attendees: attendeesFor(index),
+    };
+  });
+}
+
+export const classRows: FitnessClass[] = createClassRows(1200);

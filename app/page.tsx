@@ -45,7 +45,7 @@ const mmkFormatter = new Intl.NumberFormat("en-US");
 type DataMode = "client" | "server";
 type PreviewState = ClassRequestMode | "loading";
 
-const DEFAULT_PAGINATION: PaginationState = { pageIndex: 0, pageSize: 3 };
+const DEFAULT_PAGINATION: PaginationState = { pageIndex: 0, pageSize: 10 };
 
 export default function Home() {
   const [rows, setRows] = useState<FitnessClass[]>([]);
@@ -270,7 +270,7 @@ export default function Home() {
             onPaginationChange={dataMode === "server" ? updateServerPagination : undefined}
             totalCount={dataMode === "server" ? totalCount : undefined}
             defaultPagination={DEFAULT_PAGINATION}
-            pageSizeOptions={[3, 5, 10]}
+            pageSizeOptions={[10, 25, 50]}
             getInlineChildren={attendeeMode === "inline" ? (row) => row.attendees : undefined}
             loadChildren={attendeeMode === "lazy" ? (row) => fetchAttendees(row) : undefined}
             getExpandLabel={(row, expanded) => `${expanded ? "Collapse" : "Expand"} attendees for ${row.className}`}

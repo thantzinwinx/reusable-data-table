@@ -15,7 +15,7 @@ export const timetableColumns: TableColumn<FitnessClass>[] = [
     key: "attendance",
     header: "Attendance",
     accessor: (row) => `${row.bookedCount} / ${row.capacity}`,
-    sortValue: (row) => row.bookedCount / row.capacity,
+    sortValue: (row) => (row.capacity === 0 ? 0 : row.bookedCount / row.capacity),
     sortable: true,
   },
   {
