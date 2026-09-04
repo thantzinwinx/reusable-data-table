@@ -18,8 +18,14 @@ export type TableColumn<Row> = {
   sortValue?: (row: Row) => SortableValue;
 };
 
+export type PaginationState = {
+  pageIndex: number;
+  pageSize: number;
+};
+
 export type DataTableProps<Row> = {
   rows: Row[];
   columns: TableColumn<Row>[];
   getRowId: (row: Row) => string;
+  pageSizeOptions?: number[];
 };
