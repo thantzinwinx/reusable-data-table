@@ -38,6 +38,15 @@ export function DataTable<Row, Child = unknown>({
   loadChildren,
   renderExpandedContent,
   getExpandLabel,
+  sort: controlledSort,
+  defaultSort = null,
+  onSortChange,
+  sortingMode = "client",
+  pagination: controlledPagination,
+  defaultPagination,
+  onPaginationChange,
+  paginationMode = "client",
+  totalCount,
 }: DataTableProps<Row, Child>) {
   const instanceId = useId();
   const pageSizeId = useId();
@@ -45,7 +54,7 @@ export function DataTable<Row, Child = unknown>({
   const [scrolled, setScrolled] = useState(false);
 
   const hasExpansion = Boolean(renderExpandedContent && (getInlineChildren || loadChildren));
-  const { sort, toggleSort } = useTableSort();
+  const { sort, toggleSort } = useTableSort({ sort: controlledSort, defaultSort, onSortChange });
   const {
     expandedIds,
     revealedIds,
@@ -56,14 +65,23 @@ export function DataTable<Row, Child = unknown>({
     requestChildren,
   } = useRowExpansion<Row, Child>({ getRowId, getInlineChildren, loadChildren });
 
-  const sortedRows = useMemo(() => sortRows(rows, columns, sort), [rows, columns, sort]);
-  const { pagination: safePagination, changePagination } = useTablePagination(sortedRows.length);
+  const sortedRows = useMemo(
+    () => (sortingMode === "client" ? sortRows(rows, columns, sort) : rows),
+    [rows, columns, sort, sortingMode],
+  );
+  const count = paginationMode === "server" ? (totalCount ?? rows.length) : sortedRows.length;
+  const { pagination: safePagination, changePagination } = useTablePagination({
+    count,
+    pagination: controlledPagination,
+    defaultPagination,
+    onPaginationChange,
+  });
   const visibleRows = useMemo(() => {
+    if (paginationMode === "server") return sortedRows;
     const start = safePagination.pageIndex * safePagination.pageSize;
     return sortedRows.slice(start, start + safePagination.pageSize);
-  }, [sortedRows, safePagination]);
+  }, [paginationMode, sortedRows, safePagination]);
 
-  const count = sortedRows.length;
   const pageCount = Math.max(1, Math.ceil(count / safePagination.pageSize));
   const rangeStart = count === 0 ? 0 : safePagination.pageIndex * safePagination.pageSize + 1;
   const rangeEnd = Math.min(count, rangeStart + visibleRows.length - 1);

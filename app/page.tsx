@@ -1,7 +1,34 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { DataTable } from "@/components/data-table";
+import type { PaginationState, SortState } from "@/components/data-table";
 import { AttendeeList, type Attendee } from "@/features/timetable/AttendeeList";
+
+type Payment = {
+  id: string;
+  memberName: string;
+  amount: number;
+  method: "Cash" | "Card" | "Mobile Banking";
+  status: "Paid" | "Pending" | "Refunded";
+  date: string;
+};
+
+const payments: Payment[] = [
+  { id: "p1", memberName: "Su Su", amount: 120000, method: "Mobile Banking", status: "Paid", date: "2026-09-01" },
+  { id: "p2", memberName: "Mg Kyaw", amount: 45000, method: "Cash", status: "Paid", date: "2026-09-02" },
+  { id: "p3", memberName: "Mya Mya", amount: 80000, method: "Card", status: "Pending", date: "2026-09-02" },
+  { id: "p4", memberName: "Phyu Phyu", amount: 60000, method: "Mobile Banking", status: "Refunded", date: "2026-09-03" },
+  { id: "p5", memberName: "Mg Mya", amount: 150000, method: "Card", status: "Paid", date: "2026-09-03" },
+];
+
+const paymentStatusClasses: Record<Payment["status"], string> = {
+  Paid: "bg-[#e8f3eb] text-[#397251]",
+  Pending: "bg-[#fff0df] text-[#a15f22]",
+  Refunded: "bg-[#f4eae7] text-[#965848]",
+};
+
+const mmkFormatter = new Intl.NumberFormat("en-US");
 
 type FitnessClass = {
   id: string;
@@ -52,31 +79,152 @@ async function loadAttendees(row: FitnessClass): Promise<Attendee[]> {
   ];
 }
 
+const sortValueByKey: Record<string, (row: FitnessClass) => string | number> = {
+  className: (row) => row.className,
+  instructor: (row) => row.instructor,
+  startTime: (row) => row.startTime,
+  attendance: (row) => row.bookedCount / row.capacity,
+};
+
+async function fetchClassPage(sort: SortState, pagination: PaginationState) {
+  await wait(500);
+  let sorted = rows;
+  if (sort) {
+    const getValue = sortValueByKey[sort.key];
+    if (getValue) {
+      sorted = [...rows].sort((a, b) => {
+        const valueA = getValue(a);
+        const valueB = getValue(b);
+        const comparison = valueA < valueB ? -1 : valueA > valueB ? 1 : 0;
+        return sort.direction === "asc" ? comparison : -comparison;
+      });
+    }
+  }
+  const start = pagination.pageIndex * pagination.pageSize;
+  return { rows: sorted.slice(start, start + pagination.pageSize), totalCount: sorted.length };
+}
+
 export default function Home() {
+  const [mode, setMode] = useState<"client" | "server">("client");
+  const [serverSort, setServerSort] = useState<SortState>(null);
+  const [serverPagination, setServerPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 3 });
+  const [serverRows, setServerRows] = useState<FitnessClass[]>([]);
+  const [serverTotalCount, setServerTotalCount] = useState(0);
+  const [serverLoading, setServerLoading] = useState(false);
+
+  useEffect(() => {
+    if (mode !== "server") return;
+    let cancelled = false;
+    fetchClassPage(serverSort, serverPagination).then((result) => {
+      if (cancelled) return;
+      setServerRows(result.rows);
+      setServerTotalCount(result.totalCount);
+      setServerLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, serverSort, serverPagination]);
+
+  const timetableColumns = [
+    { key: "className", header: "Class", accessor: (row: FitnessClass) => row.className, sortable: true, pinned: "left" as const },
+    { key: "instructor", header: "Instructor", accessor: (row: FitnessClass) => row.instructor, sortable: true },
+    { key: "startTime", header: "Time", accessor: (row: FitnessClass) => row.startTime, sortable: true },
+    {
+      key: "attendance",
+      header: "Attendance",
+      accessor: (row: FitnessClass) => `${row.bookedCount} / ${row.capacity}`,
+      sortValue: (row: FitnessClass) => row.bookedCount / row.capacity,
+      sortable: true,
+    },
+  ];
+
   return (
     <main className="min-h-screen p-6">
       <p className="text-xs font-bold tracking-[0.12em] uppercase">Gym Studio</p>
       <h1 className="mt-3 mb-6 text-4xl font-semibold tracking-tight">Class timetable</h1>
+
+      <div className="mb-4 flex gap-2">
+        <button
+          type="button"
+          className={`rounded-lg border px-3 py-1.5 text-sm font-semibold ${mode === "client" ? "border-[#272b2d] bg-[#272b2d] text-white" : "border-[#ddd9d1] bg-white text-[#3f4343]"}`}
+          onClick={() => setMode("client")}
+        >
+          Client processing
+        </button>
+        <button
+          type="button"
+          className={`rounded-lg border px-3 py-1.5 text-sm font-semibold ${mode === "server" ? "border-[#272b2d] bg-[#272b2d] text-white" : "border-[#ddd9d1] bg-white text-[#3f4343]"}`}
+          onClick={() => {
+            setMode("server");
+            setServerLoading(true);
+          }}
+        >
+          Server processing
+        </button>
+      </div>
+
       <DataTable
-        rows={rows}
+        rows={mode === "server" ? serverRows : rows}
         getRowId={(row) => row.id}
         pageSizeOptions={[3, 5, 10]}
-        columns={[
-          { key: "className", header: "Class", accessor: (row) => row.className, sortable: true, pinned: "left" },
-          { key: "instructor", header: "Instructor", accessor: (row) => row.instructor, sortable: true },
-          { key: "startTime", header: "Time", accessor: (row) => row.startTime, sortable: true },
-          {
-            key: "attendance",
-            header: "Attendance",
-            accessor: (row) => `${row.bookedCount} / ${row.capacity}`,
-            sortValue: (row) => row.bookedCount / row.capacity,
-            sortable: true,
-          },
-        ]}
+        columns={timetableColumns}
+        loading={mode === "server" ? serverLoading : false}
+        sortingMode={mode}
+        paginationMode={mode}
+        sort={mode === "server" ? serverSort : undefined}
+        onSortChange={
+          mode === "server"
+            ? (next) => {
+                setServerLoading(true);
+                setServerSort(next);
+              }
+            : undefined
+        }
+        pagination={mode === "server" ? serverPagination : undefined}
+        onPaginationChange={
+          mode === "server"
+            ? (next) => {
+                setServerLoading(true);
+                setServerPagination(next);
+              }
+            : undefined
+        }
+        totalCount={mode === "server" ? serverTotalCount : undefined}
         getInlineChildren={(row) => row.attendees}
         loadChildren={loadAttendees}
         getExpandLabel={(row, expanded) => `${expanded ? "Collapse" : "Expand"} attendees for ${row.className}`}
         renderExpandedContent={(args) => <AttendeeList {...args} />}
+      />
+
+      <h2 className="mt-12 mb-6 text-2xl font-semibold tracking-tight">Recent Payments</h2>
+      <DataTable
+        rows={payments}
+        getRowId={(row) => row.id}
+        pageSizeOptions={[3, 5, 10]}
+        columns={[
+          { key: "memberName", header: "Member", accessor: (row) => row.memberName, sortable: true, pinned: "left" },
+          {
+            key: "amount",
+            header: "Amount",
+            accessor: (row) => row.amount,
+            sortable: true,
+            renderCell: (value) => `${mmkFormatter.format(value as number)} MMK`,
+          },
+          { key: "method", header: "Method", accessor: (row) => row.method, sortable: true },
+          {
+            key: "status",
+            header: "Status",
+            accessor: (row) => row.status,
+            sortable: true,
+            renderCell: (value, row) => (
+              <span className={`rounded-full px-2 py-1 text-xs font-semibold ${paymentStatusClasses[row.status]}`}>
+                {String(value)}
+              </span>
+            ),
+          },
+          { key: "date", header: "Date", accessor: (row) => row.date, sortable: true },
+        ]}
       />
     </main>
   );

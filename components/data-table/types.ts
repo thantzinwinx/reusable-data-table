@@ -45,4 +45,13 @@ export type DataTableProps<Row, Child = unknown> = {
   loadChildren?: (row: Row) => Promise<Child[]>;
   renderExpandedContent?: (args: ExpandedContentArgs<Row, Child>) => ReactNode;
   getExpandLabel?: (row: Row, expanded: boolean) => string;
+  sort?: SortState;
+  defaultSort?: SortState;
+  onSortChange?: (sort: SortState) => void;
+  sortingMode?: "client" | "server";
+  pagination?: PaginationState;
+  defaultPagination?: PaginationState;
+  onPaginationChange?: (pagination: PaginationState) => void;
+  paginationMode?: "client" | "server";
+  totalCount?: number;
 };
