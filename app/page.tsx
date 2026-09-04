@@ -173,7 +173,7 @@ export default function Home() {
           <h1 className="mt-3 mb-6 text-4xl font-semibold tracking-tight">Class timetable</h1>
 
           <div className="mb-4 flex flex-col items-stretch justify-between gap-[18px] md:flex-row md:items-end">
-            <div className="grid gap-2 min-[761px]:flex min-[761px]:flex-wrap">
+            <div className="flex flex-col items-start gap-2 min-[761px]:flex-row min-[761px]:flex-wrap min-[761px]:items-center">
               <fieldset className={segmentedControl}>
                 <legend className="sr-only">Data processing mode</legend>
                 <button type="button" className={segmentedButton} aria-pressed={dataMode === "client"} onClick={() => updateDataMode("client")}>
