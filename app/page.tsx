@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { DataTable } from "@/components/data-table";
 import type { PaginationState, SortState } from "@/components/data-table";
 import { AttendeeList, type Attendee } from "@/features/timetable/AttendeeList";
+import { Sidebar } from "@/components/ui/Sidebar";
 
 const focusRing = "focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[#de674840]";
 const segmentedControl = "inline-flex rounded-[10px] border border-[#ddd9d1] bg-[#ebe8e1] p-[3px]";
@@ -34,6 +35,8 @@ const paymentStatusClasses: Record<Payment["status"], string> = {
 
 const mmkFormatter = new Intl.NumberFormat("en-US");
 
+type ClassStatus = "Scheduled" | "Full" | "Cancelled";
+
 type FitnessClass = {
   id: string;
   className: string;
@@ -41,7 +44,14 @@ type FitnessClass = {
   startTime: string;
   capacity: number;
   bookedCount: number;
+  status: ClassStatus;
   attendees?: Attendee[];
+};
+
+const classStatusClasses: Record<ClassStatus, string> = {
+  Scheduled: "bg-[#e8f3eb] text-[#397251]",
+  Full: "bg-[#fff0df] text-[#a15f22]",
+  Cancelled: "bg-[#f2efec] text-[#77736f] line-through",
 };
 
 const rows: FitnessClass[] = [
@@ -52,6 +62,7 @@ const rows: FitnessClass[] = [
     startTime: "6:30 AM",
     capacity: 20,
     bookedCount: 12,
+    status: "Scheduled",
     attendees: [
       { id: "a1", name: "Su Su", paymentType: "Membership", bookingStatus: "Checked-in" },
       { id: "a2", name: "Mya Mya", paymentType: "Package", bookingStatus: "Booked" },
@@ -64,6 +75,7 @@ const rows: FitnessClass[] = [
     startTime: "8:00 AM",
     capacity: 15,
     bookedCount: 15,
+    status: "Full",
     attendees: [{ id: "a3", name: "Phyu Phyu", paymentType: "One-time", bookingStatus: "Checked-in" }],
   },
   {
@@ -73,6 +85,7 @@ const rows: FitnessClass[] = [
     startTime: "9:15 AM",
     capacity: 25,
     bookedCount: 8,
+    status: "Cancelled",
     attendees: [],
   },
   {
@@ -82,6 +95,7 @@ const rows: FitnessClass[] = [
     startTime: "10:00 AM",
     capacity: 20,
     bookedCount: 5,
+    status: "Scheduled",
     attendees: [{ id: "a4", name: "Mg Kyaw", paymentType: "Package", bookingStatus: "Booked" }],
   },
   {
@@ -91,6 +105,7 @@ const rows: FitnessClass[] = [
     startTime: "11:00 AM",
     capacity: 15,
     bookedCount: 10,
+    status: "Scheduled",
     attendees: [
       { id: "a5", name: "Su Su", paymentType: "Membership", bookingStatus: "Checked-in" },
       { id: "a6", name: "Mg Mya", paymentType: "One-time", bookingStatus: "No-show" },
@@ -103,6 +118,7 @@ const rows: FitnessClass[] = [
     startTime: "1:00 PM",
     capacity: 25,
     bookedCount: 20,
+    status: "Scheduled",
     attendees: [{ id: "a7", name: "Mya Mya", paymentType: "Membership", bookingStatus: "Checked-in" }],
   },
   {
@@ -112,6 +128,7 @@ const rows: FitnessClass[] = [
     startTime: "2:30 PM",
     capacity: 20,
     bookedCount: 18,
+    status: "Scheduled",
     attendees: [{ id: "a8", name: "Phyu Phyu", paymentType: "Package", bookingStatus: "Booked" }],
   },
 ];
@@ -139,6 +156,7 @@ const sortValueByKey: Record<string, (row: FitnessClass) => string | number> = {
   instructor: (row) => row.instructor,
   startTime: (row) => row.startTime,
   attendance: (row) => row.bookedCount / row.capacity,
+  status: (row) => row.status,
 };
 
 async function fetchClassPage(sort: SortState, pagination: PaginationState) {
@@ -193,10 +211,23 @@ export default function Home() {
       sortValue: (row: FitnessClass) => row.bookedCount / row.capacity,
       sortable: true,
     },
+    {
+      key: "status",
+      header: "Status",
+      accessor: (row: FitnessClass) => row.status,
+      sortable: true,
+      renderCell: (value: unknown, row: FitnessClass) => (
+        <span className={`rounded-full px-2 py-1 text-xs font-semibold ${classStatusClasses[row.status]}`}>
+          {String(value)}
+        </span>
+      ),
+    },
   ];
 
   return (
-    <main className="min-h-screen p-6">
+    <div className="flex min-h-screen bg-[#f4f2ed]">
+      <Sidebar />
+      <main className="min-w-0 flex-1 p-6" id="top">
       <p className="text-xs font-bold tracking-[0.12em] uppercase">Gym Studio</p>
       <h1 className="mt-3 mb-6 text-4xl font-semibold tracking-tight">Class timetable</h1>
 
@@ -301,6 +332,7 @@ export default function Home() {
           { key: "date", header: "Date", accessor: (row) => row.date, sortable: true },
         ]}
       />
-    </main>
+      </main>
+    </div>
   );
 }
