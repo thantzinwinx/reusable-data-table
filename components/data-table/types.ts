@@ -24,7 +24,15 @@ export type PaginationState = {
   pageSize: number;
 };
 
-export type DataTableProps<Row> = {
+export type ExpandedContentArgs<Row, Child> = {
+  row: Row;
+  children: Child[];
+  loading: boolean;
+  error: unknown;
+  retry: () => void;
+};
+
+export type DataTableProps<Row, Child = unknown> = {
   rows: Row[];
   columns: TableColumn<Row>[];
   getRowId: (row: Row) => string;
@@ -33,4 +41,8 @@ export type DataTableProps<Row> = {
   error?: ReactNode;
   emptyState?: ReactNode;
   skeletonRowCount?: number;
+  getInlineChildren?: (row: Row) => Child[] | undefined;
+  loadChildren?: (row: Row) => Promise<Child[]>;
+  renderExpandedContent?: (args: ExpandedContentArgs<Row, Child>) => ReactNode;
+  getExpandLabel?: (row: Row, expanded: boolean) => string;
 };

@@ -1,11 +1,11 @@
 "use client";
 
-import { useId, useMemo, useRef, useState } from "react";
-import type { DataTableProps, PaginationState, SortState } from "./types";
-import { nextSort, sortRows } from "./sort";
-import { clampPagination } from "./pagination";
-
-const DEFAULT_PAGINATION: PaginationState = { pageIndex: 0, pageSize: 10 };
+import { Fragment, useId, useMemo, useRef, useState } from "react";
+import type { DataTableProps } from "./types";
+import { sortRows } from "./sort";
+import { useTableSort } from "./hooks/useTableSort";
+import { useTablePagination } from "./hooks/useTablePagination";
+import { useRowExpansion } from "./hooks/useRowExpansion";
 
 const focusRing =
   "focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[#de674848]";
@@ -25,7 +25,7 @@ function displayValue(value: unknown) {
   return String(value);
 }
 
-export function DataTable<Row>({
+export function DataTable<Row, Child = unknown>({
   rows,
   columns,
   getRowId,
@@ -34,18 +34,30 @@ export function DataTable<Row>({
   error,
   emptyState = "No results to show.",
   skeletonRowCount = 5,
-}: DataTableProps<Row>) {
+  getInlineChildren,
+  loadChildren,
+  renderExpandedContent,
+  getExpandLabel,
+}: DataTableProps<Row, Child>) {
+  const instanceId = useId();
   const pageSizeId = useId();
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [sort, setSort] = useState<SortState>(null);
-  const [pagination, setPagination] = useState<PaginationState>(DEFAULT_PAGINATION);
   const [scrolled, setScrolled] = useState(false);
 
+  const hasExpansion = Boolean(renderExpandedContent && (getInlineChildren || loadChildren));
+  const { sort, toggleSort } = useTableSort();
+  const {
+    expandedIds,
+    revealedIds,
+    childCache,
+    childErrors,
+    loadingIds,
+    toggleExpanded,
+    requestChildren,
+  } = useRowExpansion<Row, Child>({ getRowId, getInlineChildren, loadChildren });
+
   const sortedRows = useMemo(() => sortRows(rows, columns, sort), [rows, columns, sort]);
-  const safePagination = useMemo(
-    () => clampPagination(pagination, sortedRows.length),
-    [pagination, sortedRows.length],
-  );
+  const { pagination: safePagination, changePagination } = useTablePagination(sortedRows.length);
   const visibleRows = useMemo(() => {
     const start = safePagination.pageIndex * safePagination.pageSize;
     return sortedRows.slice(start, start + safePagination.pageSize);
@@ -56,7 +68,6 @@ export function DataTable<Row>({
   const rangeStart = count === 0 ? 0 : safePagination.pageIndex * safePagination.pageSize + 1;
   const rangeEnd = Math.min(count, rangeStart + visibleRows.length - 1);
 
-  const changePagination = (next: PaginationState) => setPagination(clampPagination(next, count));
   const lastPinnedKey = [...columns].reverse().find((column) => column.pinned === "left")?.key;
   const paginationHidden = loading || Boolean(error);
 
@@ -99,7 +110,7 @@ export function DataTable<Row>({
                           "inline-flex min-w-0 cursor-pointer items-center gap-[7px] rounded-[5px] border-0 bg-transparent py-1.5 font-inherit tracking-[inherit] text-inherit uppercase hover:text-[#272b2d]",
                           focusRing,
                         )}
-                        onClick={() => setSort(nextSort(sort, column.key))}
+                        onClick={() => toggleSort(column.key)}
                         aria-label={`Sort by ${typeof column.header === "string" ? column.header : column.key}`}
                       >
                         {column.header}
@@ -142,25 +153,86 @@ export function DataTable<Row>({
                 </td>
               </tr>
             ) : (
-              visibleRows.map((row) => (
-                <tr key={getRowId(row)} className={bodyRow}>
-                  {columns.map((column) => {
-                    const value = column.accessor(row);
-                    const pinned = column.pinned === "left";
-                    return (
-                      <td
-                        key={column.key}
-                        className={classNames(
-                          pinned && "sticky left-0 z-[2] bg-white group-hover:bg-[#faf9f6]",
-                          scrolled && pinned && column.key === lastPinnedKey && pinnedShadow,
-                        )}
-                      >
-                        {column.renderCell ? column.renderCell(value, row) : displayValue(value)}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))
+              visibleRows.map((row) => {
+                const id = getRowId(row);
+                const expanded = expandedIds.has(id);
+                const inlineChildren = getInlineChildren?.(row);
+                const expandable = hasExpansion && (loadChildren != null || inlineChildren !== undefined);
+                const children = childCache.get(id) ?? inlineChildren ?? [];
+                const childError = childErrors.get(id);
+                const childLoading = loadingIds.has(id);
+                const regionId = `${instanceId}-expanded-${encodeURIComponent(id)}`;
+
+                return (
+                  <Fragment key={id}>
+                    <tr className={bodyRow}>
+                      {columns.map((column, columnIndex) => {
+                        const value = column.accessor(row);
+                        const pinned = column.pinned === "left";
+                        return (
+                          <td
+                            key={column.key}
+                            className={classNames(
+                              pinned && "sticky left-0 z-[2] bg-white group-hover:bg-[#faf9f6]",
+                              scrolled && pinned && column.key === lastPinnedKey && pinnedShadow,
+                            )}
+                          >
+                            <div className="flex min-w-0 items-center gap-2.5">
+                              {columnIndex === 0 && expandable ? (
+                                <button
+                                  type="button"
+                                  className={classNames(
+                                    "group/expand grid size-[26px] shrink-0 cursor-pointer place-items-center rounded-[7px] border border-[#dfdcd5] bg-white text-[#666967] transition-colors hover:border-[#b9b5ac] hover:text-[#282c2d]",
+                                    focusRing,
+                                  )}
+                                  aria-expanded={expanded}
+                                  aria-controls={regionId}
+                                  aria-label={getExpandLabel?.(row, expanded) ?? `${expanded ? "Collapse" : "Expand"} row`}
+                                  onClick={() => toggleExpanded(row)}
+                                >
+                                  <span
+                                    className="block transition-transform group-aria-expanded/expand:rotate-90 motion-reduce:transition-none"
+                                    aria-hidden="true"
+                                  >
+                                    ›
+                                  </span>
+                                </button>
+                              ) : null}
+                              <span>{column.renderCell ? column.renderCell(value, row) : displayValue(value)}</span>
+                            </div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                    {expandable ? (
+                      <tr aria-hidden={!expanded}>
+                        <td className={classNames("bg-[#faf7f2] p-0", expanded && "border-b border-[#ece9e3]")} colSpan={columns.length}>
+                          <div
+                            id={regionId}
+                            aria-hidden={!expanded}
+                            className={classNames(
+                              "grid overflow-hidden transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none",
+                              expanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
+                            )}
+                          >
+                            <div className="min-h-0 overflow-hidden">
+                              {revealedIds.has(id)
+                                ? renderExpandedContent?.({
+                                    row,
+                                    children,
+                                    loading: childLoading,
+                                    error: childError,
+                                    retry: () => void requestChildren(row, true),
+                                  })
+                                : null}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : null}
+                  </Fragment>
+                );
+              })
             )}
           </tbody>
         </table>
