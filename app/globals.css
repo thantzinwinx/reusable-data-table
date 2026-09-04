@@ -37,6 +37,15 @@ button, select { font-family: inherit; }
   }
 }
 
+@keyframes table-row-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 @keyframes table-skeleton-sweep {
   0% {
     background-position: -120% 0;

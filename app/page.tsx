@@ -1,20 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
 import { CalendarX2, RefreshCw, WifiOff } from "lucide-react";
 import { DataTable } from "@/components/data-table";
-import type { PaginationState, SortState } from "@/components/data-table";
+import type { PreviewState } from "./hooks/useTimetableState";
 import { AttendeeList } from "@/features/timetable/AttendeeList";
 import { Sidebar } from "@/components/ui/Sidebar";
 import { Select } from "@/components/ui/Select";
-import { fetchAttendees, fetchClassPage, fetchClasses } from "@/features/timetable/classApi";
+import { fetchAttendees } from "@/features/timetable/classApi";
 import { timetableColumns } from "@/features/timetable/classColumns";
-import type { ClassRequestMode, FitnessClass } from "@/features/timetable/classTypes";
-import { fetchPaymentItems, fetchPaymentPage } from "@/features/payments/paymentApi";
+import type { FitnessClass } from "@/features/timetable/classTypes";
+import { fetchPaymentItems } from "@/features/payments/paymentApi";
 import { payments } from "@/features/payments/paymentMock";
 import { paymentColumns } from "@/features/payments/paymentColumns";
 import { PaymentItemList } from "@/features/payments/PaymentItemList";
 import type { Payment, PaymentItem } from "@/features/payments/paymentTypes";
+import { useTimetableState, DEFAULT_PAGINATION } from "./hooks/useTimetableState";
+import { usePaymentsState, PAYMENT_DEFAULT_PAGINATION } from "./hooks/usePaymentsState";
 
 const stateEnter = "motion-safe:animate-[table-state-in_0.4s_ease-out]";
 
@@ -22,169 +23,9 @@ const focusRing = "focus-visible:outline focus-visible:outline-3 focus-visible:o
 const segmentedControl = "inline-flex rounded-[10px] border border-[#ddd9d1] bg-[#ebe8e1] p-[3px]";
 const segmentedButton = `min-h-[33px] cursor-pointer rounded-[7px] border-0 bg-transparent px-[13px] text-xs font-semibold text-[#6f736f] aria-pressed:bg-white aria-pressed:text-[#292e2d] aria-pressed:shadow-sm ${focusRing}`;
 
-type DataMode = "client" | "server";
-type PreviewState = ClassRequestMode | "loading";
-
-const DEFAULT_PAGINATION: PaginationState = { pageIndex: 0, pageSize: 10 };
-const PAYMENT_DEFAULT_PAGINATION: PaginationState = { pageIndex: 0, pageSize: 3 };
-
 export default function Home() {
-  const [rows, setRows] = useState<FitnessClass[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-  const [preview, setPreview] = useState<PreviewState>("success");
-  const [attendeeMode, setAttendeeMode] = useState<"inline" | "lazy">("inline");
-  const [dataMode, setDataMode] = useState<DataMode>("client");
-  const [serverSort, setServerSort] = useState<SortState>(null);
-  const [serverPagination, setServerPagination] = useState<PaginationState>(DEFAULT_PAGINATION);
-  const [totalCount, setTotalCount] = useState(0);
-  const requestSequence = useRef(0);
-
-  const loadSchedule = useCallback(async (mode: ClassRequestMode, latency = 650) => {
-    const requestId = ++requestSequence.current;
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await fetchClasses(mode, latency);
-      if (requestId !== requestSequence.current) return;
-      setRows(result);
-      setTotalCount(result.length);
-    } catch (requestError) {
-      if (requestId !== requestSequence.current) return;
-      setRows([]);
-      setTotalCount(0);
-      setError(requestError instanceof Error ? requestError : new Error("Unexpected request failure"));
-    } finally {
-      if (requestId === requestSequence.current) setLoading(false);
-    }
-  }, []);
-
-  const loadServerSchedule = useCallback(
-    async (sort: SortState, pagination: PaginationState, mode: ClassRequestMode = "success", latency = 650) => {
-      const requestId = ++requestSequence.current;
-      setLoading(true);
-      setError(null);
-      try {
-        const result = await fetchClassPage(sort, pagination, mode, latency);
-        if (requestId !== requestSequence.current) return;
-        setRows(result.rows);
-        setTotalCount(result.totalCount);
-      } catch (requestError) {
-        if (requestId !== requestSequence.current) return;
-        setRows([]);
-        setTotalCount(0);
-        setError(requestError instanceof Error ? requestError : new Error("Unexpected request failure"));
-      } finally {
-        if (requestId === requestSequence.current) setLoading(false);
-      }
-    },
-    [],
-  );
-
-  useEffect(() => {
-    let active = true;
-    const requestId = ++requestSequence.current;
-    fetchClasses("success", 900)
-      .then((result) => {
-        if (active && requestId === requestSequence.current) {
-          setRows(result);
-          setTotalCount(result.length);
-        }
-      })
-      .catch((requestError: unknown) => {
-        if (active && requestId === requestSequence.current) {
-          setError(requestError instanceof Error ? requestError : new Error("Unexpected request failure"));
-        }
-      })
-      .finally(() => {
-        if (active && requestId === requestSequence.current) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  const updatePreview = (state: PreviewState) => {
-    setPreview(state);
-    if (state === "loading") {
-      requestSequence.current += 1;
-      setRows([]);
-      setError(null);
-      setLoading(true);
-      return;
-    }
-    if (dataMode === "server") void loadServerSchedule(serverSort, serverPagination, state);
-    else void loadSchedule(state);
-  };
-
-  const updateDataMode = (mode: DataMode) => {
-    if (mode === dataMode) return;
-    setDataMode(mode);
-    setPreview("success");
-    setServerSort(null);
-    setServerPagination(DEFAULT_PAGINATION);
-    if (mode === "server") void loadServerSchedule(null, DEFAULT_PAGINATION);
-    else void loadSchedule("success");
-  };
-
-  const updateServerSort = (sort: SortState) => {
-    const firstPage = { ...serverPagination, pageIndex: 0 };
-    setServerSort(sort);
-    setServerPagination(firstPage);
-    void loadServerSchedule(sort, firstPage);
-  };
-
-  const updateServerPagination = (pagination: PaginationState) => {
-    setServerPagination(pagination);
-    void loadServerSchedule(serverSort, pagination);
-  };
-
-  const retryInitial = () => {
-    setPreview("success");
-    if (dataMode === "server") void loadServerSchedule(serverSort, serverPagination);
-    else void loadSchedule("success");
-  };
-
-  const [paymentMode, setPaymentMode] = useState<DataMode>("client");
-  const [paymentServerSort, setPaymentServerSort] = useState<SortState>(null);
-  const [paymentServerPagination, setPaymentServerPagination] = useState<PaginationState>(PAYMENT_DEFAULT_PAGINATION);
-  const [paymentRows, setPaymentRows] = useState<Payment[]>([]);
-  const [paymentTotalCount, setPaymentTotalCount] = useState(0);
-  const [paymentLoading, setPaymentLoading] = useState(false);
-  const paymentRequestSequence = useRef(0);
-
-  const loadPaymentPage = useCallback(async (sort: SortState, pagination: PaginationState) => {
-    const requestId = ++paymentRequestSequence.current;
-    setPaymentLoading(true);
-    try {
-      const result = await fetchPaymentPage(sort, pagination);
-      if (requestId !== paymentRequestSequence.current) return;
-      setPaymentRows(result.rows);
-      setPaymentTotalCount(result.totalCount);
-    } finally {
-      if (requestId === paymentRequestSequence.current) setPaymentLoading(false);
-    }
-  }, []);
-
-  const updatePaymentMode = (mode: DataMode) => {
-    if (mode === paymentMode) return;
-    setPaymentMode(mode);
-    setPaymentServerSort(null);
-    setPaymentServerPagination(PAYMENT_DEFAULT_PAGINATION);
-    if (mode === "server") void loadPaymentPage(null, PAYMENT_DEFAULT_PAGINATION);
-  };
-
-  const updatePaymentServerSort = (sort: SortState) => {
-    const firstPage = { ...paymentServerPagination, pageIndex: 0 };
-    setPaymentServerSort(sort);
-    setPaymentServerPagination(firstPage);
-    void loadPaymentPage(sort, firstPage);
-  };
-
-  const updatePaymentServerPagination = (pagination: PaginationState) => {
-    setPaymentServerPagination(pagination);
-    void loadPaymentPage(paymentServerSort, pagination);
-  };
+  const timetable = useTimetableState();
+  const paymentsState = usePaymentsState();
 
   return (
     <div className="flex min-h-screen bg-[#f4f2ed]">
@@ -198,10 +39,20 @@ export default function Home() {
             <div className="flex flex-col items-start gap-2 min-[761px]:flex-row min-[761px]:flex-wrap min-[761px]:items-center">
               <fieldset className={segmentedControl}>
                 <legend className="sr-only">Data processing mode</legend>
-                <button type="button" className={segmentedButton} aria-pressed={dataMode === "client"} onClick={() => updateDataMode("client")}>
+                <button
+                  type="button"
+                  className={segmentedButton}
+                  aria-pressed={timetable.dataMode === "client"}
+                  onClick={() => timetable.updateDataMode("client")}
+                >
                   Client processing
                 </button>
-                <button type="button" className={segmentedButton} aria-pressed={dataMode === "server"} onClick={() => updateDataMode("server")}>
+                <button
+                  type="button"
+                  className={segmentedButton}
+                  aria-pressed={timetable.dataMode === "server"}
+                  onClick={() => timetable.updateDataMode("server")}
+                >
                   Server processing
                 </button>
               </fieldset>
@@ -210,16 +61,16 @@ export default function Home() {
                 <button
                   type="button"
                   className={segmentedButton}
-                  aria-pressed={attendeeMode === "inline"}
-                  onClick={() => setAttendeeMode("inline")}
+                  aria-pressed={timetable.attendeeMode === "inline"}
+                  onClick={() => timetable.setAttendeeMode("inline")}
                 >
                   Inline attendees
                 </button>
                 <button
                   type="button"
                   className={segmentedButton}
-                  aria-pressed={attendeeMode === "lazy"}
-                  onClick={() => setAttendeeMode("lazy")}
+                  aria-pressed={timetable.attendeeMode === "lazy"}
+                  onClick={() => timetable.setAttendeeMode("lazy")}
                 >
                   Lazy attendees
                 </button>
@@ -229,7 +80,7 @@ export default function Home() {
               <span>Preview table state</span>
               <Select<PreviewState>
                 ariaLabel="Preview table state"
-                value={preview}
+                value={timetable.preview}
                 align="right"
                 options={[
                   { label: "Live data", value: "success" },
@@ -237,32 +88,32 @@ export default function Home() {
                   { label: "Empty schedule", value: "empty" },
                   { label: "Fetch error", value: "error" },
                 ]}
-                onChange={updatePreview}
+                onChange={timetable.updatePreview}
                 triggerClassName={`flex h-9 min-w-[152px] items-center justify-between gap-2 rounded-lg border border-[#dcd8d0] bg-white pl-2.5 pr-2 text-xs text-[#383c3b] ${focusRing}`}
               />
             </div>
           </div>
 
           <DataTable<FitnessClass, NonNullable<FitnessClass["attendees"]>[number]>
-            key={`${attendeeMode}-${dataMode}`}
-            rows={rows}
+            key={`${timetable.attendeeMode}-${timetable.dataMode}`}
+            rows={timetable.rows}
             getRowId={(row) => row.id}
             columns={timetableColumns}
-            loading={loading}
+            loading={timetable.loading}
             error={
-              error ? (
+              timetable.error ? (
                 <div className={`flex flex-col items-center gap-3 ${stateEnter}`}>
                   <span className="grid size-12 place-items-center rounded-2xl bg-[#f7e4de] text-[#c2593a]">
                     <WifiOff size={22} strokeWidth={1.75} />
                   </span>
                   <div>
                     <p className="text-[0.9rem] font-semibold text-[#2c2f2e]">Could not reach the schedule</p>
-                    <p className="mx-auto mt-1 max-w-[280px] text-[0.78rem] text-[#8b8e89]">{error.message}</p>
+                    <p className="mx-auto mt-1 max-w-[280px] text-[0.78rem] text-[#8b8e89]">{timetable.error.message}</p>
                   </div>
                   <button
                     type="button"
                     className={`inline-flex items-center gap-1.5 rounded-lg border border-[#d5d0c8] bg-white px-3 py-[7px] text-[0.75rem] font-semibold text-[#414543] transition-colors hover:bg-[#f7f5f0] ${focusRing}`}
-                    onClick={retryInitial}
+                    onClick={timetable.retryInitial}
                   >
                     <RefreshCw size={13} strokeWidth={2} />
                     Try again
@@ -284,17 +135,17 @@ export default function Home() {
               </div>
             }
             skeletonRowCount={5}
-            sortingMode={dataMode}
-            sort={dataMode === "server" ? serverSort : undefined}
-            onSortChange={dataMode === "server" ? updateServerSort : undefined}
-            paginationMode={dataMode}
-            pagination={dataMode === "server" ? serverPagination : undefined}
-            onPaginationChange={dataMode === "server" ? updateServerPagination : undefined}
-            totalCount={dataMode === "server" ? totalCount : undefined}
+            sortingMode={timetable.dataMode}
+            sort={timetable.dataMode === "server" ? timetable.serverSort : undefined}
+            onSortChange={timetable.dataMode === "server" ? timetable.updateServerSort : undefined}
+            paginationMode={timetable.dataMode}
+            pagination={timetable.dataMode === "server" ? timetable.serverPagination : undefined}
+            onPaginationChange={timetable.dataMode === "server" ? timetable.updateServerPagination : undefined}
+            totalCount={timetable.dataMode === "server" ? timetable.totalCount : undefined}
             defaultPagination={DEFAULT_PAGINATION}
             pageSizeOptions={[10, 25, 50]}
-            getInlineChildren={attendeeMode === "inline" ? (row) => row.attendees : undefined}
-            loadChildren={attendeeMode === "lazy" ? (row) => fetchAttendees(row) : undefined}
+            getInlineChildren={timetable.attendeeMode === "inline" ? (row) => row.attendees : undefined}
+            loadChildren={timetable.attendeeMode === "lazy" ? (row) => fetchAttendees(row) : undefined}
             getExpandLabel={(row, expanded) => `${expanded ? "Collapse" : "Expand"} attendees for ${row.className}`}
             renderExpandedContent={(args) => <AttendeeList {...args} />}
           />
@@ -313,16 +164,16 @@ export default function Home() {
                 <button
                   type="button"
                   className={segmentedButton}
-                  aria-pressed={paymentMode === "client"}
-                  onClick={() => updatePaymentMode("client")}
+                  aria-pressed={paymentsState.mode === "client"}
+                  onClick={() => paymentsState.updateMode("client")}
                 >
                   Client processing
                 </button>
                 <button
                   type="button"
                   className={segmentedButton}
-                  aria-pressed={paymentMode === "server"}
-                  onClick={() => updatePaymentMode("server")}
+                  aria-pressed={paymentsState.mode === "server"}
+                  onClick={() => paymentsState.updateMode("server")}
                 >
                   Server processing
                 </button>
@@ -330,18 +181,18 @@ export default function Home() {
             </div>
           </div>
           <DataTable<Payment, PaymentItem>
-            key={paymentMode}
-            rows={paymentMode === "server" ? paymentRows : payments}
+            key={paymentsState.mode}
+            rows={paymentsState.mode === "server" ? paymentsState.rows : payments}
             getRowId={(row) => row.id}
             columns={paymentColumns}
-            loading={paymentMode === "server" ? paymentLoading : false}
-            sortingMode={paymentMode}
-            sort={paymentMode === "server" ? paymentServerSort : undefined}
-            onSortChange={paymentMode === "server" ? updatePaymentServerSort : undefined}
-            paginationMode={paymentMode}
-            pagination={paymentMode === "server" ? paymentServerPagination : undefined}
-            onPaginationChange={paymentMode === "server" ? updatePaymentServerPagination : undefined}
-            totalCount={paymentMode === "server" ? paymentTotalCount : undefined}
+            loading={paymentsState.mode === "server" ? paymentsState.loading : false}
+            sortingMode={paymentsState.mode}
+            sort={paymentsState.mode === "server" ? paymentsState.serverSort : undefined}
+            onSortChange={paymentsState.mode === "server" ? paymentsState.updateServerSort : undefined}
+            paginationMode={paymentsState.mode}
+            pagination={paymentsState.mode === "server" ? paymentsState.serverPagination : undefined}
+            onPaginationChange={paymentsState.mode === "server" ? paymentsState.updateServerPagination : undefined}
+            totalCount={paymentsState.mode === "server" ? paymentsState.totalCount : undefined}
             defaultPagination={PAYMENT_DEFAULT_PAGINATION}
             pageSizeOptions={[3, 5, 10]}
             loadChildren={(row) => fetchPaymentItems(row)}

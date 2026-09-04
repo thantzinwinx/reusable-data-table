@@ -169,7 +169,10 @@ export function DataTable<Row, Child = unknown>({
               })}
             </tr>
           </thead>
-          <tbody>
+          <tbody
+            key={sort ? `${sort.key}-${sort.direction}` : "unsorted"}
+            className="motion-safe:animate-[table-row-fade_0.2s_ease-out] motion-reduce:animate-none"
+          >
             {loading ? (
               Array.from({ length: skeletonRowCount }, (_, rowIndex) => (
                 <tr key={rowIndex} className={bodyRow}>
@@ -268,7 +271,7 @@ export function DataTable<Row, Child = unknown>({
                             id={regionId}
                             aria-hidden={!expanded}
                             className={classNames(
-                              "grid overflow-hidden transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none",
+                              "grid overflow-hidden transition-[grid-template-rows,opacity] duration-[320ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
                               expanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
                             )}
                           >
